@@ -1,6 +1,7 @@
 FROM ubuntu:latest
 RUN apt-get update && apt-get install -y \
     curl \
+    sudo \	
     vim \
     git \
     wget \
@@ -13,9 +14,13 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+RUN useradd -m -s /bin/bash myuser \
+    && usermod -aG sudo myuser \
+    && echo 'myuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-COPY . /app
+RUN usermod -aG sudo myuser
+WORKDIR /app
+USER myuser
 
 CMD ["bash"]
 
