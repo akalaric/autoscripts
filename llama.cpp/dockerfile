@@ -1,0 +1,28 @@
+FROM ubuntu:22.04
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    curl sudo cmake build-essential \
+    vim git wget python3 python3-pip \
+    neofetch speedtest-cli bat nmap linkchecker \
+    libssl-dev libstdc++-12-dev libopenblas-dev libzstd-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Clone llama.cpp and build
+WORKDIR /opt
+RUN git clone https://github.com/ggml-org/llama.cpp && \
+    cd llama.cpp && \
+    cmake -B build && cmake --build build --config Release && \
+    cd build && make install && ldconfig
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash myuser \
+    && usermod -aG sudo myuser \
+    && echo 'myuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch to non-root user
+WORKDIR /app
+USER myuser
+
+# Default command
+CMD ["bash"]
