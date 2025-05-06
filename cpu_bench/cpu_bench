@@ -1,0 +1,49 @@
+#!/bin/bash
+
+log_file="core_test_results.log"
+block_size="1MB"
+count="10240"
+cores_to_test=("$@")
+
+if ! command -v taskset &> /dev/null
+then
+    echo "taskset could not be found, please install it."
+    exit 1
+fi
+
+echo "Testing started at $(date)" > $log_file
+
+single_core() {
+    num_cpu=$(nproc --all)
+
+    # If no cores are provided, test all cores
+    if [ ${#cores_to_test[@]} -eq 0 ]; then
+        cores_to_test=($(seq 0 $((num_cpu - 1))))
+    fi
+
+    # Test each core
+    for core in "${cores_to_test[@]}"; do
+        echo "Testing core $core" | tee -a $log_file
+        start_time=$(date +%s)
+
+        taskset -c $core dd if=/dev/zero bs=$block_size count=$count status=progress | sha512sum >> $log_file
+
+        end_time=$(date +%s)
+        duration=$((end_time - start_time))
+
+        if [ "$duration" -gt 0 ]; then
+            # Calculate throughput in MB/s
+            block_size_bytes=$(echo "$block_size" | sed 's/[a-zA-Z]//g')  # Remove letters (MB, GB, etc.)
+            total_size=$(($block_size_bytes * $count))  # Total size in MB
+            throughput=$(echo "scale=2; $total_size / $duration" | bc)  # Calculate throughput
+
+            # Log the duration and throughput
+            echo "Core $core completed in $duration seconds with throughput: $throughput MB/s" | tee -a $log_file
+        else
+            echo "Core $core test took less than 1 second. Skipping throughput calculation." | tee -a $log_file
+        fi
+    done
+}
+
+single_core
+
