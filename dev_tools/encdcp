@@ -1,0 +1,31 @@
+#!/bin/bash
+
+operation=$1
+input_file=$2
+output_file=$3
+
+# Check if all arguments are provided
+if [ $# -ne 3 ]; then
+    echo "Usage: $0 enc|dec input_file output_file"
+    exit 1
+fi
+
+# Check if input file exists
+if [ ! -e "$input_file" ]; then
+    echo "Error: Input file '$input_file' does not exist."
+    exit 1
+fi
+
+echo -n "Enter password: "
+read -s password
+echo
+
+if [ "$operation" == "enc" ]; then
+    openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -salt -in "$input_file" -out "$output_file" -pass pass:"$password"
+elif [ "$operation" == "dec" ]; then
+    openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -d -salt -in "$input_file" -out "$output_file" -pass pass:"$password"
+else
+    echo "Invalid operation: use 'enc' to encrypt or 'dec' to decrypt."
+    exit 1
+fi
+
