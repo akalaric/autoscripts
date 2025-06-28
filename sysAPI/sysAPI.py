@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query
 import os
 import asyncio
+import uvicorn
 import subprocess
 from fastapi.responses import RedirectResponse
 import json
@@ -11,7 +12,7 @@ app = FastAPI()
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return RedirectResponse(url="/redoc")
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/system")
@@ -72,3 +73,10 @@ async def run(command: str = Query(...)):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+
+
+
+if __name__ == "__main__":
+    uvicorn.run("sysAPI:app", host="127.0.0.1", port=8000, reload=True)
