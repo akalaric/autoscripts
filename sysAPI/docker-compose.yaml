@@ -1,0 +1,30 @@
+services:
+  fastapi1:
+    build: .
+    networks:
+      vsnet:
+        ipv4_address: 172.16.238.10
+    ports:
+      - "8001:8000"
+
+  fastapi2:
+    build: .
+    networks:
+      vsnet:
+        ipv4_address: 172.16.238.11
+    ports:
+      - "8002:8000"
+  fastapi3:
+    build: .
+    networks:
+      vsnet:
+        ipv4_address: 172.16.238.12
+    ports:
+      - "8003:8000"
+
+networks:
+  vsnet:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.238.0/24"
