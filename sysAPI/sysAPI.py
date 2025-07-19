@@ -3,17 +3,29 @@ import os
 import asyncio
 import uvicorn
 import subprocess
+from pydantic import BaseModel
+from typing import List, Optional
 from fastapi.responses import RedirectResponse
 import json
 import shlex
 
 app = FastAPI()
 
-
+class PingResponse(BaseModel):
+    success: bool
+    stdout: str
+    stderr: str
+    
+class RunResponse(BaseModel):
+    stdout: str
+    stdin: str
+    
+class Uptime(BaseModel):
+    uptime : str
+    
 @app.get("/", include_in_schema=False)
 async def root():
     return RedirectResponse(url="/docs")
-
 
 @app.get("/system")
 async def system():
@@ -29,13 +41,22 @@ async def cpu():
 
 
 @app.get("/system/uptime")
-async def uptime():
-    result = subprocess.run(["uptime"], stdout=subprocess.PIPE)
-    return {"uptime": result}
+async def uptime() -> Uptime:
+    proc = await asyncio.create_subprocess_exec(
+        "uptime",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    
+    if stderr:
+        raise RuntimeError(f"Error retrieving uptime: {stderr.decode().strip()}")
+
+    return Uptime(uptime=stdout.decode().strip())
 
 
 @app.get("/ping")
-async def ping(url: str = Query(...)):
+async def ping(url: str = Query(...)) -> PingResponse:
     try:
         result = subprocess.run(
             ["ping", "-c", "4", url],
@@ -43,11 +64,11 @@ async def ping(url: str = Query(...)):
             stderr=subprocess.PIPE,
             text=True,
         )
-        return {
-            "success": result.returncode == 0,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-        }
+        return PingResponse(
+            success=result.returncode == 0,
+            stdout=result.stdout,
+            stderr=result.stderr,
+        )
     except Exception as e:
         return {"error": str(e)}
 
@@ -73,8 +94,6 @@ async def run(command: str = Query(...)):
 
     except Exception as e:
         return {"error": str(e)}
-
-
 
 
 
