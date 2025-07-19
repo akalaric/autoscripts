@@ -1,0 +1,56 @@
+name: Fast API
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: 📦 Install dependencies
+      run: |
+        set -e
+        python -m pip install --upgrade pip
+        pip install fastapi pydantic uvicorn
+
+    - name: 🤖 Test API
+      run: |
+        set -e
+        python sysAPI/sysAPI.py &
+        SERVER_PID=$!
+        trap "kill $SERVER_PID" EXIT
+
+        for i in {1..20}; do
+          if curl -s http://127.0.0.1:8000/docs >/dev/null; then
+            echo "✅ FastAPI server is up!"
+            break
+          fi
+          echo "⏳ Waiting for FastAPI on port 8000..."
+          sleep 1
+        done
+
+        OUTPUT_PING=$(curl -s "http://127.0.0.1:8000/ping?url=google.com")
+        OUTPUT_SYS=$(curl -s http://127.0.0.1:8000/system)
+        OUTPUT_CPU=$(curl -s http://127.0.0.1:8000/system/cpu)
+
+        echo "Ping: $OUTPUT_PING"
+        echo "System: $OUTPUT_SYS"
+        echo "CPU: $OUTPUT_CPU"
+
+        if [ -z "$OUTPUT_PING" ] || [ -z "$OUTPUT_SYS" ] || [ -z "$OUTPUT_CPU" ]; then
+          echo "❌ One or more endpoints returned empty output"
+          exit 1
+        fi
+
+        echo "✅ All API responses returned successfully!"
