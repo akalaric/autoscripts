@@ -1,0 +1,85 @@
+---
+- name: Update, install tools, and tweak bash bindings (with PPA fastfetch install)
+  hosts: all
+  become: true
+  vars:
+    target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+  pre_tasks:
+    - name: Set facts for target user's environment
+      # Determine the home directory and .bashrc path based on the target_user.
+      set_fact:
+        target_home: "{{ '/root' if target_user == 'root' else '/home/' + target_user }}"
+        bashrc_path: "{{ target_home + '/.bashrc' }}"
+
+  tasks:
+    - name: apt | Update cache and upgrade packages (safe)
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: safe
+        cache_valid_time: 3600
+
+    - name: apt | Install common tools (excluding fastfetch)
+      ansible.builtin.apt:
+        name:
+          - python3
+          - tree
+          - git
+          - curl
+          - wget
+          - unzip
+          - zip
+          - shellcheck
+          - rsync
+          - net-tools
+          - iputils-ping
+          - dnsutils
+          - lshw
+          - lm-sensors
+          - pciutils
+          - cmake
+          - build-essential
+          - strace
+          - ltrace
+          - jq
+          - neovim
+          - python3
+          - python3-venv
+          - htop
+          - btop
+        state: present
+
+    # --- fastfetch PPA Installation ---
+    - name: fastfetch | Add fastfetch PPA repository
+      ansible.builtin.apt_repository:
+        repo: 'ppa:zhangsongcui3371/fastfetch'
+        state: present
+        update_cache: yes # Run 'apt update' after adding the PPA
+
+    - name: fastfetch | Install fastfetch from PPA
+      ansible.builtin.apt:
+        name: fastfetch
+        state: present
+    # ----------------------------------
+
+    - name: uv | Install system-wide via official installer (to /usr/local/bin)
+      environment:
+        UV_INSTALL_DIR: /usr/local/bin
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+      args:
+        creates: /usr/local/bin/uv
+      environment:
+        UV_INSTALL_DIR: /usr/local/bin
+
+    - name: bashrc | Ensure Ctrl+Arrow word movement bindings (forward/backward)
+      ansible.builtin.blockinfile:
+        path: "{{ bashrc_path }}"
+        create: yes
+        mode: "0644"
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        marker: "# {mark} ANSIBLE readline word-move bindings"
+        block: |
+          bind '"\e[1;5C": forward-word'
+          bind '"\e[1;5D": backward-word'
