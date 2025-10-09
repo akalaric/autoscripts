@@ -1,27 +1,52 @@
 ---
-- name: Update, install tools, and tweak bash bindings (with PPA fastfetch install)
+- name: Update and install tools
   hosts: all
   become: true
   vars:
     target_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+
   pre_tasks:
     - name: Set facts for target user's environment
-      # Determine the home directory and .bashrc path based on the target_user.
       set_fact:
-        target_home: "{{ '/root' if target_user == 'root' else '/home/' + target_user }}"
-        bashrc_path: "{{ target_home + '/.bashrc' }}"
+        bashrc_path: "{{ '/home/' + target_user + '/.bashrc' }}"
 
   tasks:
-    - name: apt | Update cache and upgrade packages (safe)
+    # -------------------------------
+    # System Update & Upgrade
+    # -------------------------------
+    - name: apt | Update cache and upgrade packages
       ansible.builtin.apt:
         update_cache: yes
         upgrade: safe
         cache_valid_time: 3600
 
-    - name: apt | Install common tools (excluding fastfetch)
+    # -------------------------------
+    # Bash Configuration
+    # -------------------------------
+    - name: bashrc updates
+      ansible.builtin.blockinfile:
+        path: "{{ bashrc_path }}"
+        create: yes
+        mode: "0644"
+        owner: "{{ target_user }}"
+        group: "{{ target_user }}"
+        marker: "# {mark} ANSIBLE readline word-move bindings"
+        block: |
+          bind '"\e[1;5C": forward-word'
+          bind '"\e[1;5D": backward-word'
+          alias bat='batcat'
+
+    # -------------------------------
+    # Common Developer Tools
+    # -------------------------------
+    - name: apt | Install common tools
       ansible.builtin.apt:
         name:
           - python3
+          - python3-venv
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
           - tree
           - git
           - curl
@@ -40,46 +65,68 @@
           - build-essential
           - strace
           - ltrace
+          - nmap
           - jq
           - neovim
-          - python3
-          - python3-venv
           - htop
           - btop
+          - bat
         state: present
 
-    # --- fastfetch PPA Installation ---
+    # -------------------------------
+    # Docker Installation
+    # -------------------------------
+    - name: docker | Add Docker GPG key and repository
+      ansible.builtin.shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+          | gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg
+        echo "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/docker.gpg] \
+        https://download.docker.com/linux/ubuntu \
+        $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+      args:
+        creates: /etc/apt/trusted.gpg.d/docker.gpg
+
+    - name: docker | Install Docker packages
+      ansible.builtin.apt:
+        update_cache: yes
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: docker | Add user to docker group
+      ansible.builtin.user:
+        name: "{{ target_user }}"
+        groups: docker
+        append: yes
+
+    - name: docker | Verify Docker installation
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    # -------------------------------
+    # Fastfetch Installation
+    # -------------------------------
     - name: fastfetch | Add fastfetch PPA repository
       ansible.builtin.apt_repository:
         repo: 'ppa:zhangsongcui3371/fastfetch'
         state: present
-        update_cache: yes # Run 'apt update' after adding the PPA
+        update_cache: yes
 
-    - name: fastfetch | Install fastfetch from PPA
+    - name: fastfetch | Install fastfetch
       ansible.builtin.apt:
         name: fastfetch
         state: present
-    # ----------------------------------
 
+    # -------------------------------
+    # UV Installation
+    # -------------------------------
     - name: uv | Install system-wide via official installer (to /usr/local/bin)
       environment:
         UV_INSTALL_DIR: /usr/local/bin
       ansible.builtin.shell: |
-        set -euo pipefail
         curl -LsSf https://astral.sh/uv/install.sh | sh
       args:
         creates: /usr/local/bin/uv
-      environment:
-        UV_INSTALL_DIR: /usr/local/bin
-
-    - name: bashrc | Ensure Ctrl+Arrow word movement bindings (forward/backward)
-      ansible.builtin.blockinfile:
-        path: "{{ bashrc_path }}"
-        create: yes
-        mode: "0644"
-        owner: "{{ target_user }}"
-        group: "{{ target_user }}"
-        marker: "# {mark} ANSIBLE readline word-move bindings"
-        block: |
-          bind '"\e[1;5C": forward-word'
-          bind '"\e[1;5D": backward-word'
