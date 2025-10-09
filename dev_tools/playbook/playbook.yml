@@ -8,8 +8,7 @@
     - name: Set facts for target user's environment
       # Determine the home directory and .bashrc path based on the target_user.
       set_fact:
-        target_home: "{{ '/root' if target_user == 'root' else '/home/' + target_user }}"
-        bashrc_path: "{{ target_home + '/.bashrc' }}"
+        bashrc_path: "{{ '/home/' + target_user + '/.bashrc' }}"
 
   tasks:
     - name: apt | Update cache and upgrade packages (safe)
@@ -40,6 +39,8 @@
           - build-essential
           - strace
           - ltrace
+          - nmap
+          - bat
           - jq
           - neovim
           - python3
@@ -69,8 +70,6 @@
         curl -LsSf https://astral.sh/uv/install.sh | sh
       args:
         creates: /usr/local/bin/uv
-      environment:
-        UV_INSTALL_DIR: /usr/local/bin
 
     - name: bashrc | Ensure Ctrl+Arrow word movement bindings (forward/backward)
       ansible.builtin.blockinfile:
