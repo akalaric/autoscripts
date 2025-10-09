@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+sudo apt update -y
+sudo apt upgrade -y
+sudo apt autoremove -y
+sudo apt autoclean -y
+sudo apt install -y ansible
+
+if [[ -f "inventory.ini" && -f "playbook.yml" ]]; then
+  ansible-playbook -i inventory.ini playbook.yml
+fi
+
