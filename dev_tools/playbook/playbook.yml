@@ -32,8 +32,8 @@
         group: "{{ target_user }}"
         marker: "# {mark} ANSIBLE readline word-move bindings"
         block: |
-          bind '"\e[1;5C": forward-word'
-          bind '"\e[1;5D": backward-word'
+          bind '"\e[A": history-search-backward'
+          bind '"\e[B": history-search-forward'
           alias bat='batcat'
 
     # -------------------------------
