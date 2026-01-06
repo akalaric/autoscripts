@@ -10,15 +10,15 @@ jobs:
     runs-on: ubuntu-latest
       
     steps:
-    - name: 📥 Checkout code
+    - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: 🐍 Set up Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
 
-    - name: 📦 Install dependencies
+    - name: Install dependencies
       run: |
         set -e
         python -m pip install --upgrade pip
@@ -33,10 +33,10 @@ jobs:
 
         for i in {1..20}; do
           if curl -s http://127.0.0.1:8000/docs >/dev/null; then
-            echo "✅ FastAPI server is up!"
+            echo "FastAPI server is up!"
             break
           fi
-          echo "⏳ Waiting for FastAPI on port 8000..."
+          echo "Waiting for FastAPI on port 8000..."
           sleep 1
         done
 
@@ -49,8 +49,39 @@ jobs:
         echo "CPU: $OUTPUT_CPU"
 
         if [ -z "$OUTPUT_PING" ] || [ -z "$OUTPUT_SYS" ] || [ -z "$OUTPUT_CPU" ]; then
-          echo "❌ One or more endpoints returned empty output"
+          echo "One or more endpoints returned empty output"
           exit 1
         fi
 
-        echo "✅ All API responses returned successfully!"
+        echo "All API responses returned successfully!"
+
+
+    - name: Test playbook
+      run: |
+        set -e
+
+        sudo apt update -y
+        sudo apt upgrade -y
+        sudo apt install -y ansible
+
+        # Verify ansible-playbook is installed
+        if ! command -v ansible-playbook >/dev/null 2>&1; then
+          echo "ansible-playbook not found"
+          exit 1
+        fi
+
+        # Verify required files exist
+        if [[ -f dev_tools/playbook/playbook.yml && -f dev_tools/playbook/inventory.ini ]]; then
+          ansible-playbook \
+            -i dev_tools/playbook/inventory.ini \
+            dev_tools/playbook/playbook.yml
+        else
+          echo "Playbook or inventory file missing"
+          exit 1
+        fi
+
+        echo "playbook test successfull"
+
+
+
+
