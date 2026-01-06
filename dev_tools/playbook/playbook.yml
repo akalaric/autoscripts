@@ -72,8 +72,7 @@
           - btop
           - bat
           - rgrep
-          - fd
-          - exa
+          - fd-find
         state: present
 
     # -------------------------------
