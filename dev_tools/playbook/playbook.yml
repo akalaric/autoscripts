@@ -71,6 +71,9 @@
           - htop
           - btop
           - bat
+          - rgrep
+          - fd
+          - exa
         state: present
 
     # -------------------------------
